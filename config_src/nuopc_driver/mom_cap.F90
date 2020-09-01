@@ -15,7 +15,6 @@ use mpp_io_mod,               only: mpp_open, MPP_RDONLY, MPP_ASCII, MPP_OVERWR,
 use mpp_mod,                  only: stdlog, stdout, mpp_root_pe, mpp_clock_id
 use mpp_mod,                  only: mpp_clock_begin, mpp_clock_end, MPP_CLOCK_SYNC
 use mpp_mod,                  only: MPP_CLOCK_DETAILED, CLOCK_COMPONENT, MAXPES
-use time_interp_external_mod, only: time_interp_external_init
 use time_manager_mod,         only: set_calendar_type, time_type, increment_date
 use time_manager_mod,         only: set_time, set_date, get_time, get_date, month_name
 use time_manager_mod,         only: GREGORIAN, JULIAN, NOLEAP, THIRTY_DAY_MONTHS, NO_CALENDAR
@@ -247,7 +246,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   if (isPresent .and. isSet) write_diagnostics=(trim(value)=="true")
 
   write(logmsg,*) write_diagnostics
-  call ESMF_LogWrite('MOM_cap:DumpFields = '//trim(logmsg), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite('MOM_cap:DumpFields = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   overwrite_timeslice = .false.
   call NUOPC_CompAttributeGet(gcomp, name="OverwriteSlice", value=value, &
@@ -255,7 +255,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) overwrite_timeslice=(trim(value)=="true")
   write(logmsg,*) overwrite_timeslice
-  call ESMF_LogWrite('MOM_cap:OverwriteSlice = '//trim(logmsg), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite('MOM_cap:OverwriteSlice = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   profile_memory = .false.
   call NUOPC_CompAttributeGet(gcomp, name="ProfileMemory", value=value, &
@@ -263,7 +264,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) profile_memory=(trim(value)=="true")
   write(logmsg,*) profile_memory
-  call ESMF_LogWrite('MOM_cap:ProfileMemory = '//trim(logmsg), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite('MOM_cap:ProfileMemory = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   grid_attach_area = .false.
   call NUOPC_CompAttributeGet(gcomp, name="GridAttachArea", value=value, &
@@ -271,7 +273,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) grid_attach_area=(trim(value)=="true")
   write(logmsg,*) grid_attach_area
-  call ESMF_LogWrite('MOM_cap:GridAttachArea = '//trim(logmsg), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite('MOM_cap:GridAttachArea = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call NUOPC_CompAttributeGet(gcomp, name='dbug_flag', value=value, isPresent=isPresent, isSet=isSet, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -287,7 +290,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) then
      scalar_field_name = trim(value)
-     call ESMF_LogWrite('MOM_cap:ScalarFieldName = '//trim(scalar_field_name), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite('MOM_cap:ScalarFieldName = '//trim(scalar_field_name), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
   endif
 
   scalar_field_count = 0
@@ -303,7 +307,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
        return
      endif
      write(logmsg,*) scalar_field_count
-     call ESMF_LogWrite('MOM_cap:ScalarFieldCount = '//trim(logmsg), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite('MOM_cap:ScalarFieldCount = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
   endif
 
   scalar_field_idx_grid_nx = 0
@@ -335,7 +340,8 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
         return
      endif
      write(logmsg,*) scalar_field_idx_grid_ny
-     call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNY = '//trim(logmsg), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNY = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
   endif
 
 end subroutine
@@ -389,13 +395,16 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   integer                                :: iostat
   integer                                :: readunit
   character(len=512)                     :: restartfile          ! Path/Name of restart file
+  character(len=2048)                    :: restartfiles         ! Path/Name of restart files
+                                                                 ! (same as restartfile if single restart file)
   character(len=*), parameter            :: subname='(MOM_cap:InitializeAdvertise)'
   character(len=32)                      :: calendar
 !--------------------------------
 
   rc = ESMF_SUCCESS
 
-  call ESMF_LogWrite(subname//' enter', ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite(subname//' enter', ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   allocate(Ice_ocean_boundary)
   !allocate(ocean_state) ! ocean_model_init allocate this pointer
@@ -524,10 +533,11 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   endif
 
   if (len_trim(runtype) > 0) then
-     call ESMF_LogWrite('MOM_cap:startup = '//trim(runtype), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite('MOM_cap:startup = '//trim(runtype), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
   endif
 
-  restartfile = ""
+  restartfile = ""; restartfiles = ""
   if (runtype == "initial") then
     if (cesm_coupled) then
       restartfile = "n"
@@ -542,9 +552,9 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
      if (cesm_coupled) then
         call ESMF_LogWrite('MOM_cap: restart requested, using rpointer.ocn', ESMF_LOGMSG_WARNING)
         call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_VMGet(vm, localPet=localPet, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         if (localPet == 0) then
            ! this hard coded for rpointer.ocn right now
@@ -554,25 +564,37 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
                      line=__LINE__, file=u_FILE_u, rcToReturn=rc)
                 return
             endif
-            read(readunit,'(a)', iostat=iostat) restartfile
-            if (iostat /= 0) then
-               call ESMF_LogSetError(ESMF_RC_FILE_READ, msg=subname//' ERROR reading rpointer.ocn', &
-                    line=__LINE__, file=u_FILE_u, rcToReturn=rc)
-                return
-            endif
+
+            do
+              read(readunit,'(a)', iostat=iostat) restartfile
+              if (iostat /= 0) then
+                if (len(trim(restartfiles))>1 .and. iostat<0) then
+                  exit ! done reading restart files list.
+                else
+                   call ESMF_LogSetError(ESMF_RC_FILE_READ, msg=subname//' ERROR reading rpointer.ocn', &
+                     line=__LINE__, file=u_FILE_u, rcToReturn=rc)
+                   return
+                endif
+              endif
+              ! check if the length of restartfiles variable is sufficient:
+              if (len(restartfiles)-len(trim(restartfiles)) < len(trim(restartfile))) then
+                call MOM_error(FATAL, "Restart file name(s) too long.")
+              endif
+              restartfiles = trim(restartfiles) // " " // trim(restartfile)
+            enddo
             close(readunit)
          endif
          ! broadcast attribute set on master task to all tasks
-         call ESMF_VMBroadcast(vm, restartfile, count=ESMF_MAXSTR-1, rootPet=0, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
-      else
+         call ESMF_VMBroadcast(vm, restartfiles, count=len(restartfiles), rootPet=0, rc=rc)
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       else
          call ESMF_LogWrite('MOM_cap: restart requested, use input.nml', ESMF_LOGMSG_WARNING)
        endif
 
   endif
 
   ocean_public%is_ocean_pe = .true.
-  call ocean_model_init(ocean_public, ocean_state, time0, time_start, input_restart_file=trim(restartfile))
+  call ocean_model_init(ocean_public, ocean_state, time0, time_start, input_restart_file=trim(restartfiles))
 
   call ocean_model_init_sfc(ocean_state, ocean_public)
 
@@ -813,7 +835,8 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
   call mpp_get_global_domain(ocean_public%domain, xsize=nxg, ysize=nyg)
   write(tmpstr,'(a,2i6)') subname//' nxg,nyg = ',nxg,nyg
-  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !---------------------------------
   ! number of tiles per PET, assumed to be 1, and number of pes (tiles) total
@@ -826,7 +849,8 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   endif
   ntiles=mpp_get_domain_npes(ocean_public%domain)
   write(tmpstr,'(a,1i6)') subname//' ntiles = ',ntiles
-  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !---------------------------------
   ! get start and end indices of each tile and their PET
@@ -838,7 +862,8 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   if (dbug > 1) then
      do n = 1,ntiles
         write(tmpstr,'(a,6i6)') subname//' tiles ',n,pe(n),xb(n),xe(n),yb(n),ye(n)
-        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
      enddo
   endif
 
@@ -1026,14 +1051,16 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
      allocate(indexList(cnt))
      write(tmpstr,'(a,i8)') subname//' distgrid cnt= ',cnt
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_DistGridGet(distgrid=distgrid, localDE=0, seqIndexList=indexList, rc=rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,'(a,4i8)') subname//' distgrid list= ',&
           indexList(1),indexList(cnt),minval(indexList), maxval(indexList)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      deallocate(IndexList)
 
@@ -1114,13 +1141,16 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      ubnd4 = ubound(dataPtr_xcor,2)
 
      write(tmpstr,*) subname//' iscjsc = ',isc,iec,jsc,jec
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,*) subname//' lbub12 = ',lbnd1,ubnd1,lbnd2,ubnd2
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,*) subname//' lbub34 = ',lbnd3,ubnd3,lbnd4,ubnd4
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      if (iec-isc /= ubnd1-lbnd1 .or. jec-jsc /= ubnd2-lbnd2) then
         call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
@@ -1159,24 +1189,30 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      enddo
 
      write(tmpstr,*) subname//' mask = ',minval(dataPtr_mask),maxval(dataPtr_mask)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      if(grid_attach_area) then
         write(tmpstr,*) subname//' area = ',minval(dataPtr_area),maxval(dataPtr_area)
-        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
      endif
 
      write(tmpstr,*) subname//' xcen = ',minval(dataPtr_xcen),maxval(dataPtr_xcen)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,*) subname//' ycen = ',minval(dataPtr_ycen),maxval(dataPtr_ycen)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,*) subname//' xcor = ',minval(dataPtr_xcor),maxval(dataPtr_xcor)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,*) subname//' ycor = ',minval(dataPtr_ycor),maxval(dataPtr_ycor)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      gridOut = gridIn ! for now out same as in
 
@@ -1250,9 +1286,14 @@ subroutine DataInitialize(gcomp, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   call ESMF_TimeGet(currTime,          timestring=timestr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+  call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  call ESMF_TimeGet(currTime,          timestring=timestr, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -1284,7 +1325,7 @@ subroutine DataInitialize(gcomp, rc)
   ! check whether all Fields in the exportState are "Updated"
   if (NUOPC_IsUpdated(exportState)) then
     call NUOPC_CompAttributeSet(gcomp, name="InitializeDataComplete", value="true", rc=rc)
-    call ESMF_LogWrite("MOM6 - Initialize-Data-Dependency SATISFIED!!!", ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite("MOM6 - Initialize-Data-Dependency SATISFIED!!!", ESMF_LOGMSG_INFO, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
   endif
 
@@ -1301,7 +1342,7 @@ subroutine DataInitialize(gcomp, rc)
         call ESMF_FieldWrite(field, fileName='field_init_ocn_export_'//trim(timestr)//'.nc', &
           timeslice=1, overwrite=overwrite_timeslice, rc=rc)
         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      endif
+     endif
      enddo
   endif
 
@@ -1349,10 +1390,12 @@ subroutine ModelAdvance(gcomp, rc)
   integer                                :: writeunit
   integer                                :: localPet
   type(ESMF_VM)                          :: vm
-  integer                                :: n
+  integer                                :: n, i
   character(240)                         :: import_timestr, export_timestr
   character(len=128)                     :: fldname
   character(len=*),parameter             :: subname='(MOM_cap:ModelAdvance)'
+  character(len=8)                       :: suffix
+  integer                                :: num_rest_files
 
   rc = ESMF_SUCCESS
   if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM Model_ADVANCE: ")
@@ -1369,7 +1412,8 @@ subroutine ModelAdvance(gcomp, rc)
   call ESMF_ClockPrint(clock, options="currTime", &
     preString="------>Advancing OCN from: ", unit=msgString, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, &
     timeStep=timeStep, rc=rc)
@@ -1395,7 +1439,8 @@ subroutine ModelAdvance(gcomp, rc)
 
       ! Do not call MOM6 timestepping routine if the first cpl tstep of a startup run
       if (currTime == startTime) then
-        call ESMF_LogWrite("MOM6 - Skipping the first coupling timestep", ESMF_LOGMSG_INFO)
+        call ESMF_LogWrite("MOM6 - Skipping the first coupling timestep", ESMF_LOGMSG_INFO, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         do_advance = .false.
       else
         do_advance = .true.
@@ -1407,7 +1452,8 @@ subroutine ModelAdvance(gcomp, rc)
             call ESMF_LogWrite("MOM6 - Stepping back one coupling timestep", ESMF_LOGMSG_INFO)
             Time = esmf2fms_time(currTime-timeStep) ! i.e., startTime
 
-            call ESMF_LogWrite("MOM6 - doubling the coupling timestep", ESMF_LOGMSG_INFO)
+            call ESMF_LogWrite("MOM6 - doubling the coupling timestep", ESMF_LOGMSG_INFO, rc=rc)
+            if (ChkErr(rc,__LINE__,u_FILE_u)) return
             Time_step_coupled = 2 * esmf2fms_time(timeStep)
          endif
       end if
@@ -1489,55 +1535,43 @@ subroutine ModelAdvance(gcomp, rc)
   !---------------
 
    call ESMF_ClockGetAlarm(clock, alarmname='stop_alarm', alarm=stop_alarm, rc=rc)
-   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return  ! bail out
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !---------------
   ! If restart alarm exists and is ringing - write restart file
   !---------------
 
-  if (restart_mode == 'cmeps') then
-     call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+  call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-     if (ESMF_AlarmIsRinging(restart_alarm, rc=rc)) then
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+  if (ESMF_AlarmIsRinging(restart_alarm, rc=rc)) then
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-     ! turn off the alarm
-     call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+  ! turn off the alarm
+  call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-     call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-     call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=seconds, rc=rc )
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-     if (cesm_coupled) then
+  ! determine restart filename
+  call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=seconds, rc=rc )
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return  
+    if (cesm_coupled) then
         call NUOPC_CompAttributeGet(gcomp, name='case_name', value=casename, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_VMGet(vm, localPet=localPet, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
              trim(casename), year, month, day, seconds
+
+        call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
+
+        ! write restart file(s)
+        call ocean_model_restart(ocean_state, restartname=restartname, num_rest_files=num_rest_files)
+
         if (localPet == 0) then
            ! Write name of restart file in the rpointer file - this is currently hard-coded for the ocean
            open(newunit=writeunit, file='rpointer.ocn', form='formatted', status='unknown', iostat=iostat)
@@ -1547,27 +1581,40 @@ subroutine ModelAdvance(gcomp, rc)
               return
            endif
            write(writeunit,'(a)') trim(restartname)//'.nc'
+
+           if (num_rest_files > 1) then
+              ! append i.th restart file name to rpointer
+              do i=1, num_rest_files-1
+                if (i < 10) then
+                  write(suffix,'("_",I1)') i
+                else
+                  write(suffix,'("_",I2)') i
+                endif
+                write(writeunit,'(a)') trim(restartname) // trim(suffix) // '.nc'
+              enddo
+           endif
+
            close(writeunit)
         endif
-     else
-        ! write the final restart without a timestamp
-        if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
-           write(restartname,'(A)')"MOM.res"
-        else
-           write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
-                "MOM.res.", year, month, day, hour, minute, seconds
-        endif
-     end if
-     call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO)
+    else
+      ! write the final restart without a timestamp
+      if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
+        write(restartname,'(A)')"MOM.res"
+      else
+        write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
+             "MOM.res.", year, month, day, hour, minute, seconds
+      endif
 
-     ! write restart file(s)
-     call ocean_model_restart(ocean_state, restartname=restartname)
+      call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
 
-     if (is_root_pe()) then
-       write(logunit,*) subname//' writing restart file ',trim(restartname)
-     endif
+      ! write restart file(s)
+      call ocean_model_restart(ocean_state, restartname=restartname)
+    end if
+
+    if (is_root_pe()) then
+      write(logunit,*) subname//' writing restart file ',trim(restartname)
     endif
-  end if ! end of restart_mode is cmeps
+  endif
 
   !---------------
   ! Write diagnostics
@@ -1577,6 +1624,7 @@ subroutine ModelAdvance(gcomp, rc)
      do n = 1,fldsFrOcn_num
       fldname = fldsFrOcn(n)%shortname
       call ESMF_StateGet(exportState, itemName=trim(fldname), itemType=itemType, rc=rc)
+
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       if (itemType /= ESMF_STATEITEM_NOTFOUND) then
@@ -1694,8 +1742,7 @@ subroutine ModelSetRunClock(gcomp, rc)
      else
         call NUOPC_CompAttributeGet(gcomp, name="restart_n", value=cvalue, &
              isPresent=isPresent, isSet=isSet, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=__FILE__)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         ! If restart_n is set and non-zero, then restart_option must be available from config
         if (isPresent .and. isSet) then
@@ -1704,8 +1751,7 @@ subroutine ModelSetRunClock(gcomp, rc)
           if(restart_n /= 0)then
             call NUOPC_CompAttributeGet(gcomp, name="restart_option", value=cvalue, &
                  isPresent=isPresent, isSet=isSet, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, file=__FILE__)) return
+            if (ChkErr(rc,__LINE__,u_FILE_u)) return
             if (isPresent .and. isSet) then
               read(cvalue,*) restart_option
               call ESMF_LogWrite(subname//" Restart_option = "//restart_option, &
@@ -1718,10 +1764,10 @@ subroutine ModelSetRunClock(gcomp, rc)
             endif
         
             ! not used in nems
+
             call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
                  isPresent=isPresent, isSet=isSet, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, file=__FILE__)) return
+            if (ChkErr(rc,__LINE__,u_FILE_u)) return
             if (isPresent .and. isSet) then
                read(cvalue,*) restart_ymd
                call ESMF_LogWrite(subname//" Restart_ymd = "//trim(cvalue), ESMF_LOGMSG_INFO)
@@ -1746,24 +1792,17 @@ subroutine ModelSetRunClock(gcomp, rc)
              opt_ymd = restart_ymd,           &
              RefTime = mcurrTime,             &
              alarmname = 'restart_alarm', rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, &
-             file=__FILE__)) &
-             return  ! bail out
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         call ESMF_AlarmSet(restart_alarm, clock=mclock, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, &
-             file=__FILE__)) &
-             return  ! bail out
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_LogWrite(subname//" Restart alarm is Created and Set", ESMF_LOGMSG_INFO)
      end if
 
      ! create a 1-shot alarm at the driver stop time
      stop_alarm = ESMF_AlarmCreate(mclock, ringtime=dstopTime, name = "stop_alarm", rc=rc)
      call ESMF_LogWrite(subname//" Create Stop alarm", ESMF_LOGMSG_INFO)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, file=__FILE__)) return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
  
      call ESMF_TimeGet(dstoptime, timestring=timestr, rc=rc)
      call ESMF_LogWrite("Stop Alarm will ring at : "//trim(timestr), ESMF_LOGMSG_INFO)
@@ -1802,8 +1841,12 @@ subroutine ocean_model_finalize(gcomp, rc)
   type(TIME_TYPE)                        :: Time
   type(ESMF_Clock)                       :: clock
   type(ESMF_Time)                        :: currTime
+  type(ESMF_Alarm), allocatable          :: alarmList(:)
+  integer                                :: alarmCount
   character(len=64)                      :: timestamp
+  character(len=64)                      :: alarm_name
   logical                                :: write_restart
+  integer                                :: i
   character(len=*),parameter  :: subname='(MOM_cap:ocean_model_finalize)'
 
   write(*,*) 'MOM: --- finalize called ---'
@@ -1828,7 +1871,7 @@ subroutine ocean_model_finalize(gcomp, rc)
   else
      write_restart = .false.
   end if
-  if (write_restart)call ESMF_LogWrite("No Restart Alarm, writing restart at Finalize ", &
+  if (write_restart) call ESMF_LogWrite("No Restart Alarm, writing restart at Finalize ", &
                          ESMF_LOGMSG_INFO)
 
   call ocean_model_end(ocean_public, ocean_State, Time, write_restart=write_restart)
