@@ -460,7 +460,7 @@ subroutine diabatic(u, v, h, tv, Hml, fluxes, visc, ADp, CDp, dt, Time_end, &
     H_to_RL2_T2 = GV%H_to_RZ * GV%g_Earth
     do j=js,je
       ps(:) = 0.0
-      if (associated(fluxes%p_surf)) then 
+      if (associated(fluxes%p_surf)) then
         do i=is,ie
           ps(i) = fluxes%p_surf(i,j)
         enddo
